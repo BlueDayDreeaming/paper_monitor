@@ -15,17 +15,20 @@
 python3 monitor.py
 python3 monitor.py --date-et 2026-06-04
 python3 monitor.py --page-cap 4
+python3 monitor.py --api-url https://api.ssrn.com/content/v1/bindings/204/papers
 ```
 
 - 默认目标日期：当前 `America/New_York` 日期减一天
 - `--date-et`：补跑指定美东日期
 - `--page-cap`：限制最多抓几页，每页 50 篇
+- `--api-url`：直接指定 ARN API，跳过首页发现
 
 ## Output
 
 - Markdown 日报：`reports/YYYY-MM-DD.md`
 
 日报只列命中结果；未命中的论文只在摘要里显示统计数。
+如果 SSRN 首页对服务器返回 `403`，程序会自动回退到默认 ARN API，不会因为首页发现失败而退出。
 
 ## Linux Deployment
 

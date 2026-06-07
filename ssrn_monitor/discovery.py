@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from html.parser import HTMLParser
 
+DEFAULT_ARN_API_URL = "https://api.ssrn.com/content/v1/bindings/204/papers"
+
 
 class _NetworkPapersParser(HTMLParser):
     def __init__(self) -> None:

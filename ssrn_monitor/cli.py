@@ -5,7 +5,7 @@ from pathlib import Path
 
 from ssrn_monitor.csv_loader import load_watch_targets
 from ssrn_monitor.dates import default_target_date_et
-from ssrn_monitor.discovery import discover_network_papers_api_url
+from ssrn_monitor.discovery import DEFAULT_ARN_API_URL, discover_network_papers_api_url
 from ssrn_monitor.fetch import fetch_papers_for_date
 from ssrn_monitor.http import http_get
 from ssrn_monitor.match import match_papers_to_targets
@@ -16,7 +16,26 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Monitor SSRN Accounting Research Network daily papers.")
     parser.add_argument("--date-et", dest="date_et", help="Target America/New_York date in YYYY-MM-DD format.")
     parser.add_argument("--page-cap", dest="page_cap", type=int, default=10, help="Maximum pages to scan.")
+    parser.add_argument(
+        "--api-url",
+        dest="api_url",
+        help="Override the ARN papers API URL and skip homepage discovery.",
+    )
     return parser
+
+
+def resolve_api_url(api_url_override: str | None) -> tuple[str, list[str]]:
+    if api_url_override:
+        return api_url_override, []
+
+    try:
+        homepage_html = http_get("https://www.ssrn.com/index.cfm/en/arn/").decode("utf-8", errors="replace")
+        return discover_network_papers_api_url(homepage_html), []
+    except Exception as error:  # noqa: BLE001
+        return (
+            DEFAULT_ARN_API_URL,
+            [f"Homepage discovery failed; fell back to default ARN API URL: {error}"],
+        )
 
 
 def main() -> int:
@@ -32,11 +51,10 @@ def main() -> int:
     csv_path = repo_root / "accounting_top3_faculty_top200_2021_2025.csv"
     report_dir = repo_root / "reports"
     target_date_et = args.date_et or default_target_date_et()
+    api_url, warnings = resolve_api_url(args.api_url)
 
-    homepage_html = http_get("https://www.ssrn.com/index.cfm/en/arn/").decode("utf-8", errors="replace")
-    api_url = discover_network_papers_api_url(homepage_html)
-
-    papers, stats, warnings = fetch_papers_for_date(api_url, target_date_et, args.page_cap)
+    papers, stats, fetch_warnings = fetch_papers_for_date(api_url, target_date_et, args.page_cap)
+    warnings.extend(fetch_warnings)
     targets = load_watch_targets(csv_path)
     matches = match_papers_to_targets(papers, targets)
     markdown = build_markdown_report(target_date_et, stats, warnings, matches)
