@@ -29,6 +29,7 @@ python3 monitor.py --api-url https://api.ssrn.com/content/v1/bindings/204/papers
 
 日报只列命中结果；未命中的论文只在摘要里显示统计数。
 如果 SSRN 首页对服务器返回 `403`，程序会自动回退到默认 ARN API，不会因为首页发现失败而退出。
+如果连 `api.ssrn.com` 也返回 `403`，通常说明 SSRN 在拦截当前云服务器出口 IP；这时需要更换服务器出口网络，或给进程配置代理。
 
 ## Linux Deployment
 
