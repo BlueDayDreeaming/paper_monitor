@@ -1,0 +1,67 @@
+name: Daily SSRN Monitor
+
+on:
+  schedule:
+    - cron: "15 5 * * *"
+  workflow_dispatch:
+    inputs:
+      date_et:
+        description: "Optional target America/New_York date in YYYY-MM-DD"
+        required: false
+        type: string
+      page_cap:
+        description: "Maximum ARN pages to scan"
+        required: false
+        default: "10"
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  run-monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run tests
+        run: python -m unittest discover -s tests
+
+      - name: Run monitor
+        env:
+          INPUT_DATE_ET: ${{ github.event.inputs.date_et }}
+          INPUT_PAGE_CAP: ${{ github.event.inputs.page_cap }}
+        run: |
+          args=()
+          if [ -n "${INPUT_DATE_ET}" ]; then
+            args+=(--date-et "${INPUT_DATE_ET}")
+          fi
+          if [ -n "${INPUT_PAGE_CAP}" ]; then
+            args+=(--page-cap "${INPUT_PAGE_CAP}")
+          fi
+          python monitor.py "${args[@]}"
+
+      - name: Upload report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ssrn-report
+          path: reports/*.md
+          if-no-files-found: error
+
+      - name: Commit updated reports
+        run: |
+          if [ -z "$(git status --short -- reports)" ]; then
+            echo "No report changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f reports
+          git commit -m "Add SSRN report for $(date -u +%F)"
+          git push

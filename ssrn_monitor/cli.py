@@ -3,13 +3,13 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from ssrn_monitor.csv_loader import load_watch_targets
 from ssrn_monitor.dates import default_target_date_et
 from ssrn_monitor.discovery import DEFAULT_ARN_API_URL, discover_network_papers_api_url
 from ssrn_monitor.fetch import fetch_papers_for_date
 from ssrn_monitor.http import http_get
 from ssrn_monitor.match import match_papers_to_targets
 from ssrn_monitor.report import build_markdown_report, write_markdown_report
+from ssrn_monitor.watch_targets import load_watch_targets
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -48,14 +48,13 @@ def main() -> int:
         parser.error("--page-cap must be >= 1.")
 
     repo_root = Path.cwd()
-    csv_path = repo_root / "accounting_top3_faculty_top200_2021_2025.csv"
     report_dir = repo_root / "reports"
     target_date_et = args.date_et or default_target_date_et()
     api_url, warnings = resolve_api_url(args.api_url)
 
     papers, stats, fetch_warnings = fetch_papers_for_date(api_url, target_date_et, args.page_cap)
     warnings.extend(fetch_warnings)
-    targets = load_watch_targets(csv_path)
+    targets = load_watch_targets()
     matches = match_papers_to_targets(papers, targets)
     markdown = build_markdown_report(target_date_et, stats, warnings, matches)
     report_path = write_markdown_report(report_dir, target_date_et, markdown)
