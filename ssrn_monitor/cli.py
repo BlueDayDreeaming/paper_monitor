@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Sequence
 from pathlib import Path
 
 from ssrn_monitor.dates import default_target_date_et
@@ -8,6 +9,7 @@ from ssrn_monitor.discovery import DEFAULT_ARN_API_URL, discover_network_papers_
 from ssrn_monitor.fetch import fetch_papers_for_date
 from ssrn_monitor.http import http_get
 from ssrn_monitor.match import match_papers_to_targets
+from ssrn_monitor.proxies import load_proxies_from_env, load_proxies_from_file
 from ssrn_monitor.report import build_markdown_report, write_markdown_report
 from ssrn_monitor.watch_targets import load_watch_targets
 
@@ -21,21 +23,35 @@ def build_parser() -> argparse.ArgumentParser:
         dest="api_url",
         help="Override the ARN papers API URL and skip homepage discovery.",
     )
+    parser.add_argument(
+        "--proxy-file",
+        dest="proxy_file",
+        help="Optional local proxy list file. GitHub Actions should use the SSRN_PROXIES secret instead.",
+    )
     return parser
 
 
-def resolve_api_url(api_url_override: str | None) -> tuple[str, list[str]]:
+def resolve_api_url(api_url_override: str | None, proxies: Sequence[str] | None = None) -> tuple[str, list[str]]:
     if api_url_override:
         return api_url_override, []
 
     try:
-        homepage_html = http_get("https://www.ssrn.com/index.cfm/en/arn/").decode("utf-8", errors="replace")
+        homepage_html = http_get("https://www.ssrn.com/index.cfm/en/arn/", proxies=proxies).decode(
+            "utf-8",
+            errors="replace",
+        )
         return discover_network_papers_api_url(homepage_html), []
     except Exception as error:  # noqa: BLE001
         return (
             DEFAULT_ARN_API_URL,
             [f"Homepage discovery failed; fell back to default ARN API URL: {error}"],
         )
+
+
+def load_proxy_pool(proxy_file: str | None) -> list[str]:
+    if proxy_file:
+        return load_proxies_from_file(proxy_file)
+    return load_proxies_from_env()
 
 
 def main() -> int:
@@ -50,9 +66,10 @@ def main() -> int:
     repo_root = Path.cwd()
     report_dir = repo_root / "reports"
     target_date_et = args.date_et or default_target_date_et()
-    api_url, warnings = resolve_api_url(args.api_url)
+    proxy_pool = load_proxy_pool(args.proxy_file)
+    api_url, warnings = resolve_api_url(args.api_url, proxy_pool)
 
-    papers, stats, fetch_warnings = fetch_papers_for_date(api_url, target_date_et, args.page_cap)
+    papers, stats, fetch_warnings = fetch_papers_for_date(api_url, target_date_et, args.page_cap, proxy_pool)
     warnings.extend(fetch_warnings)
     targets = load_watch_targets()
     matches = match_papers_to_targets(papers, targets)
@@ -65,6 +82,7 @@ def main() -> int:
     print(f"Papers scanned: {stats['papers_scanned']}")
     print(f"Papers on target date: {stats['target_papers']}")
     print(f"Matched papers: {len({match.paper.abstract_id for match in matches})}")
+    print(f"Proxies loaded: {len(proxy_pool)}")
     print(f"Report: {report_path}")
     if warnings:
         for warning in warnings:

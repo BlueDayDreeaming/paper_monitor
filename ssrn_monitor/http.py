@@ -3,6 +3,7 @@ from __future__ import annotations
 import ssl
 import time
 import urllib.request
+from collections.abc import Sequence
 from urllib.error import HTTPError
 
 
@@ -55,23 +56,37 @@ def http_get(
     timeout: int = 30,
     retries: int = 3,
     backoff_seconds: tuple[int, ...] = (0, 5, 15),
+    proxies: Sequence[str] | None = None,
 ) -> bytes:
     last_error: Exception | None = None
-    for attempt in range(retries):
+    proxy_pool = list(proxies or [])
+    attempts = max(retries, len(proxy_pool) or 0)
+
+    for attempt in range(attempts):
         delay = backoff_seconds[min(attempt, len(backoff_seconds) - 1)]
         if delay > 0:
             time.sleep(delay)
 
+        proxy_url = proxy_pool[attempt % len(proxy_pool)] if proxy_pool else None
         request = urllib.request.Request(
             url,
             headers=build_headers(url, headers),
         )
         try:
-            with urllib.request.urlopen(request, timeout=timeout, context=ssl_context()) as response:
+            if proxy_url:
+                opener = urllib.request.build_opener(
+                    urllib.request.ProxyHandler({"http": proxy_url, "https": proxy_url}),
+                    urllib.request.HTTPSHandler(context=ssl_context()),
+                )
+                response_context = opener.open(request, timeout=timeout)
+            else:
+                response_context = urllib.request.urlopen(request, timeout=timeout, context=ssl_context())
+
+            with response_context as response:
                 return response.read()
         except HTTPError as error:
             last_error = error
-            if error.code == 403:
+            if error.code == 403 and not proxy_pool:
                 break
         except Exception as error:  # noqa: BLE001
             last_error = error
@@ -79,7 +94,7 @@ def http_get(
     if isinstance(last_error, HTTPError) and last_error.code == 403:
         raise RuntimeError(
             "HTTP GET failed with 403 Forbidden for "
-            f"{url}. SSRN is likely blocking this server's outbound IP or datacenter network."
+            f"{url}. SSRN is likely blocking this runner's outbound IP or all configured proxies."
         ) from last_error
 
     raise RuntimeError(f"HTTP GET failed for {url}: {last_error}") from last_error

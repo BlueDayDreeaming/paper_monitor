@@ -37,6 +37,7 @@ jobs:
         env:
           INPUT_DATE_ET: ${{ github.event.inputs.date_et }}
           INPUT_PAGE_CAP: ${{ github.event.inputs.page_cap }}
+          SSRN_PROXIES: ${{ secrets.SSRN_PROXIES }}
         run: |
           args=()
           if [ -n "${INPUT_DATE_ET}" ]; then

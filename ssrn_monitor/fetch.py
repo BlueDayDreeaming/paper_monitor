@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from typing import Any
 
 from ssrn_monitor.dates import parse_approved_date_to_iso
@@ -45,6 +46,7 @@ def fetch_papers_for_date(
     api_url: str,
     target_date_et: str,
     page_cap: int,
+    proxies: Sequence[str] | None = None,
 ) -> tuple[list[Paper], dict[str, int], list[str]]:
     warnings: list[str] = []
     pages_scanned = 0
@@ -55,7 +57,10 @@ def fetch_papers_for_date(
         index_value = page_index * PAGE_SIZE
         page_url = f"{api_url}?index={index_value}&count={PAGE_SIZE}&sort=0"
         payload = json.loads(
-            http_get(page_url, headers={"Accept": JSON_ACCEPT}, timeout=30).decode("utf-8", errors="replace")
+            http_get(page_url, headers={"Accept": JSON_ACCEPT}, timeout=30, proxies=proxies).decode(
+                "utf-8",
+                errors="replace",
+            )
         )
 
         raw_papers = payload.get("papers", [])

@@ -16,12 +16,14 @@ python3 monitor.py
 python3 monitor.py --date-et 2026-06-04
 python3 monitor.py --page-cap 4
 python3 monitor.py --api-url https://api.ssrn.com/content/v1/bindings/204/papers
+python3 monitor.py --proxy-file "Webshare 10 proxies.txt"
 ```
 
 - 默认目标日期：当前 `America/New_York` 日期减一天
 - `--date-et`：补跑指定美东日期
 - `--page-cap`：限制最多抓几页，每页 50 篇
 - `--api-url`：直接指定 ARN API，跳过首页发现
+- `--proxy-file`：本地测试时读取代理池文件
 
 ## Output
 
@@ -42,13 +44,26 @@ python3 monitor.py --api-url https://api.ssrn.com/content/v1/bindings/204/papers
 - 运行前先执行单测
 - 成功后把 `reports/*.md` 作为 artifact 上传
 - 如果报告有更新，会自动提交回仓库
+- 如果配置了 `SSRN_PROXIES` secret，会通过代理池访问 SSRN
 
 启用方式：
 
 1. 把代码推到 GitHub 仓库默认分支
 2. 在仓库 `Settings -> Actions -> General` 中确认 Actions 已启用，并允许 workflow 读写仓库内容
-3. 在 `Actions` 页面找到 `Daily SSRN Monitor` 工作流
-4. 可直接点击 `Run workflow` 手动测试一次
+3. 在仓库 `Settings -> Secrets and variables -> Actions` 中添加 repository secret：`SSRN_PROXIES`
+4. 把 `Webshare 10 proxies.txt` 的完整内容粘贴到 `SSRN_PROXIES`
+5. 在 `Actions` 页面找到 `Daily SSRN Monitor` 工作流
+6. 可直接点击 `Run workflow` 手动测试一次
+
+支持的代理格式：
+
+```text
+host:port
+host:port:username:password
+username:password:host:port
+username:password@host:port
+http://username:password@host:port
+```
 
 ## Schedule Notes
 
