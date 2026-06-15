@@ -67,6 +67,8 @@ def main() -> int:
     report_dir = repo_root / "reports"
     target_date_et = args.date_et or default_target_date_et()
     proxy_pool = load_proxy_pool(args.proxy_file)
+    print(f"Target date (ET): {target_date_et}", flush=True)
+    print(f"Proxies loaded: {len(proxy_pool)}", flush=True)
     api_url, warnings = resolve_api_url(args.api_url, proxy_pool)
 
     papers, stats, fetch_warnings = fetch_papers_for_date(api_url, target_date_et, args.page_cap, proxy_pool)
@@ -76,13 +78,11 @@ def main() -> int:
     markdown = build_markdown_report(target_date_et, stats, warnings, matches)
     report_path = write_markdown_report(report_dir, target_date_et, markdown)
 
-    print(f"Target date (ET): {target_date_et}")
     print(f"API URL: {api_url}")
     print(f"Pages scanned: {stats['pages_scanned']}")
     print(f"Papers scanned: {stats['papers_scanned']}")
     print(f"Papers on target date: {stats['target_papers']}")
     print(f"Matched papers: {len({match.paper.abstract_id for match in matches})}")
-    print(f"Proxies loaded: {len(proxy_pool)}")
     print(f"Report: {report_path}")
     if warnings:
         for warning in warnings:

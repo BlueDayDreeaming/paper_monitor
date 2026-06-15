@@ -176,6 +176,7 @@ def http_get(
     proxies: Sequence[str] | None = None,
 ) -> bytes:
     last_error: Exception | None = None
+    attempt_errors: list[str] = []
     proxy_pool = list(proxies or [])
     attempts = max(retries, len(proxy_pool) or 0)
 
@@ -205,15 +206,22 @@ def http_get(
                 return response.read()
         except HTTPError as error:
             last_error = error
+            attempt_label = f"proxy {attempt + 1}" if proxy_url else f"direct attempt {attempt + 1}"
+            attempt_errors.append(f"{attempt_label}: HTTP {error.code}")
             if error.code == 403 and not proxy_pool:
                 break
         except Exception as error:  # noqa: BLE001
             last_error = error
+            attempt_label = f"proxy {attempt + 1}" if proxy_url else f"direct attempt {attempt + 1}"
+            attempt_errors.append(f"{attempt_label}: {type(error).__name__}")
 
     if isinstance(last_error, HTTPError) and last_error.code == 403:
+        attempts_summary = "; ".join(attempt_errors)
         raise RuntimeError(
             "HTTP GET failed with 403 Forbidden for "
-            f"{url}. SSRN is likely blocking this runner's outbound IP or all configured proxies."
+            f"{url}. SSRN is likely blocking this runner's outbound IP or all configured proxies. "
+            f"Attempt summary: {attempts_summary}"
         ) from last_error
 
-    raise RuntimeError(f"HTTP GET failed for {url}: {last_error}") from last_error
+    attempts_summary = "; ".join(attempt_errors)
+    raise RuntimeError(f"HTTP GET failed for {url}: {last_error}. Attempt summary: {attempts_summary}") from last_error

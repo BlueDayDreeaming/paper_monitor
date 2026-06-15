@@ -46,7 +46,7 @@ jobs:
           if [ -n "${INPUT_PAGE_CAP}" ]; then
             args+=(--page-cap "${INPUT_PAGE_CAP}")
           fi
-          python monitor.py "${args[@]}"
+          python -u monitor.py "${args[@]}"
 
       - name: Upload report artifact
         uses: actions/upload-artifact@v4
