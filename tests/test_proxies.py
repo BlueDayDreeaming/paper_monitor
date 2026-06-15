@@ -9,18 +9,30 @@ class ProxiesTest(unittest.TestCase):
     def test_normalizes_host_port_username_password(self) -> None:
         self.assertEqual(
             normalize_proxy_entry("proxy.example.com:8080:user:pass"),
-            "http://user:pass@proxy.example.com:8080",
+            "socks5://user:pass@proxy.example.com:8080",
         )
 
     def test_normalizes_username_password_host_port(self) -> None:
         self.assertEqual(
             normalize_proxy_entry("user:pass:proxy.example.com:8080"),
-            "http://user:pass@proxy.example.com:8080",
+            "socks5://user:pass@proxy.example.com:8080",
         )
 
     def test_normalizes_username_password_at_host_port(self) -> None:
         self.assertEqual(
             normalize_proxy_entry("user:pass@proxy.example.com:8080"),
+            "socks5://user:pass@proxy.example.com:8080",
+        )
+
+    def test_encodes_proxy_credentials(self) -> None:
+        self.assertEqual(
+            normalize_proxy_entry("proxy.example.com:8080:user:p/a ss"),
+            "socks5://user:p%2Fa%20ss@proxy.example.com:8080",
+        )
+
+    def test_keeps_explicit_http_scheme(self) -> None:
+        self.assertEqual(
+            normalize_proxy_entry("http://user:pass@proxy.example.com:8080"),
             "http://user:pass@proxy.example.com:8080",
         )
 

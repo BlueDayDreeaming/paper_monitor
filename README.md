@@ -63,7 +63,10 @@ host:port:username:password
 username:password:host:port
 username:password@host:port
 http://username:password@host:port
+socks5://username:password@host:port
 ```
+
+没有写 scheme 的代理默认按 `socks5` 处理；如果使用 HTTP 代理，请显式写成 `http://...`。
 
 ## Schedule Notes
 

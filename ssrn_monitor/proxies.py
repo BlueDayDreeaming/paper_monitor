@@ -6,6 +6,7 @@ from urllib.parse import quote, urlsplit
 
 
 PROXY_ENV_VAR = "SSRN_PROXIES"
+DEFAULT_PROXY_SCHEME_ENV_VAR = "SSRN_PROXY_SCHEME"
 
 
 def _split_host_port(value: str) -> tuple[str, str]:
@@ -15,7 +16,7 @@ def _split_host_port(value: str) -> tuple[str, str]:
     return host, port
 
 
-def normalize_proxy_entry(value: str) -> str:
+def normalize_proxy_entry(value: str, default_scheme: str = "socks5") -> str:
     raw = value.strip()
     if not raw:
         raise ValueError("empty proxy entry")
@@ -34,12 +35,12 @@ def normalize_proxy_entry(value: str) -> str:
         if not separator or not username or not password:
             raise ValueError("proxy credentials must use username:password")
         host, port = _split_host_port(host_port)
-        return f"http://{quote(username)}:{quote(password)}@{host}:{port}"
+        return f"{default_scheme}://{quote(username, safe='')}:{quote(password, safe='')}@{host}:{port}"
 
     parts = raw.split(":")
     if len(parts) == 2:
         host, port = _split_host_port(raw)
-        return f"http://{host}:{port}"
+        return f"{default_scheme}://{host}:{port}"
 
     if len(parts) == 4:
         if parts[1].isdigit():
@@ -48,24 +49,26 @@ def normalize_proxy_entry(value: str) -> str:
             username, password, host, port = parts
         else:
             raise ValueError("four-part proxy entry must include one port field")
-        return f"http://{quote(username)}:{quote(password)}@{host}:{port}"
+        return f"{default_scheme}://{quote(username, safe='')}:{quote(password, safe='')}@{host}:{port}"
 
     raise ValueError("unsupported proxy entry format")
 
 
-def parse_proxy_entries(raw_value: str) -> list[str]:
+def parse_proxy_entries(raw_value: str, default_scheme: str = "socks5") -> list[str]:
     proxies: list[str] = []
     for raw_entry in raw_value.replace(",", "\n").splitlines():
         entry = raw_entry.strip()
         if not entry or entry.startswith("#"):
             continue
-        proxies.append(normalize_proxy_entry(entry))
+        proxies.append(normalize_proxy_entry(entry, default_scheme=default_scheme))
     return proxies
 
 
 def load_proxies_from_env() -> list[str]:
-    return parse_proxy_entries(os.environ.get(PROXY_ENV_VAR, ""))
+    default_scheme = os.environ.get(DEFAULT_PROXY_SCHEME_ENV_VAR, "socks5")
+    return parse_proxy_entries(os.environ.get(PROXY_ENV_VAR, ""), default_scheme=default_scheme)
 
 
 def load_proxies_from_file(path: str | Path) -> list[str]:
-    return parse_proxy_entries(Path(path).read_text(encoding="utf-8"))
+    default_scheme = os.environ.get(DEFAULT_PROXY_SCHEME_ENV_VAR, "socks5")
+    return parse_proxy_entries(Path(path).read_text(encoding="utf-8"), default_scheme=default_scheme)
