@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from urllib.parse import quote, urlsplit
+from urllib.parse import quote, unquote, urlsplit
 
 
 PROXY_ENV_VAR = "SSRN_PROXIES"
@@ -72,3 +72,18 @@ def load_proxies_from_env() -> list[str]:
 def load_proxies_from_file(path: str | Path) -> list[str]:
     default_scheme = os.environ.get(DEFAULT_PROXY_SCHEME_ENV_VAR, "socks5")
     return parse_proxy_entries(Path(path).read_text(encoding="utf-8"), default_scheme=default_scheme)
+
+
+def playwright_proxy_config(proxy_url: str) -> dict[str, str]:
+    parsed = urlsplit(proxy_url)
+    if parsed.scheme not in {"http", "https", "socks4", "socks5"}:
+        raise ValueError(f"unsupported Playwright proxy scheme: {parsed.scheme}")
+    if not parsed.hostname or parsed.port is None:
+        raise ValueError("Playwright proxy URL must include host and port")
+
+    config = {"server": f"{parsed.scheme}://{parsed.hostname}:{parsed.port}"}
+    if parsed.username:
+        config["username"] = unquote(parsed.username)
+    if parsed.password:
+        config["password"] = unquote(parsed.password)
+    return config

@@ -9,6 +9,7 @@ from ssrn_monitor.discovery import DEFAULT_ARN_API_URL, discover_network_papers_
 from ssrn_monitor.fetch import fetch_papers_for_date
 from ssrn_monitor.http import http_get
 from ssrn_monitor.match import match_papers_to_targets
+from ssrn_monitor.playwright_fetch import fetch_papers_for_date_with_playwright
 from ssrn_monitor.proxies import load_proxies_from_env, load_proxies_from_file
 from ssrn_monitor.report import build_markdown_report, write_markdown_report
 from ssrn_monitor.watch_targets import load_watch_targets
@@ -27,6 +28,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--proxy-file",
         dest="proxy_file",
         help="Optional local proxy list file. GitHub Actions should use the SSRN_PROXIES secret instead.",
+    )
+    parser.add_argument(
+        "--fetcher",
+        choices=("playwright", "http"),
+        default="playwright",
+        help="Fetcher backend. Defaults to Playwright for GitHub Actions compatibility.",
     )
     return parser
 
@@ -69,10 +76,18 @@ def main() -> int:
     proxy_pool = load_proxy_pool(args.proxy_file)
     print(f"Target date (ET): {target_date_et}", flush=True)
     print(f"Proxies loaded: {len(proxy_pool)}", flush=True)
-    api_url, warnings = resolve_api_url(args.api_url, proxy_pool)
+    if args.fetcher == "playwright":
+        api_url, papers, stats, warnings = fetch_papers_for_date_with_playwright(
+            api_url_override=args.api_url,
+            target_date_et=target_date_et,
+            page_cap=args.page_cap,
+            proxies=proxy_pool,
+        )
+    else:
+        api_url, warnings = resolve_api_url(args.api_url, proxy_pool)
+        papers, stats, fetch_warnings = fetch_papers_for_date(api_url, target_date_et, args.page_cap, proxy_pool)
+        warnings.extend(fetch_warnings)
 
-    papers, stats, fetch_warnings = fetch_papers_for_date(api_url, target_date_et, args.page_cap, proxy_pool)
-    warnings.extend(fetch_warnings)
     targets = load_watch_targets()
     matches = match_papers_to_targets(papers, targets)
     markdown = build_markdown_report(target_date_et, stats, warnings, matches)

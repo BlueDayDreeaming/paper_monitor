@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from collections.abc import Sequence
 from typing import Any
+from urllib.parse import urlencode
 
 from ssrn_monitor.dates import parse_approved_date_to_iso
 from ssrn_monitor.http import JSON_ACCEPT, http_get
@@ -13,7 +14,13 @@ from ssrn_monitor.normalize import decode_and_clean_text, normalize_text
 PAGE_SIZE = 50
 
 
-def _transform_paper(raw_paper: dict[str, Any]) -> Paper:
+def build_papers_page_url(api_url: str, page_index: int, page_size: int = PAGE_SIZE) -> str:
+    separator = "&" if "?" in api_url else "?"
+    query = urlencode({"index": page_index * page_size, "count": page_size, "sort": 0})
+    return f"{api_url}{separator}{query}"
+
+
+def transform_paper(raw_paper: dict[str, Any]) -> Paper:
     authors = [
         PaperAuthor(
             author_order=index + 1,
@@ -54,8 +61,7 @@ def fetch_papers_for_date(
     matched: list[Paper] = []
 
     for page_index in range(page_cap):
-        index_value = page_index * PAGE_SIZE
-        page_url = f"{api_url}?index={index_value}&count={PAGE_SIZE}&sort=0"
+        page_url = build_papers_page_url(api_url, page_index)
         payload = json.loads(
             http_get(page_url, headers={"Accept": JSON_ACCEPT}, timeout=30, proxies=proxies).decode(
                 "utf-8",
@@ -64,7 +70,7 @@ def fetch_papers_for_date(
         )
 
         raw_papers = payload.get("papers", [])
-        papers = [_transform_paper(paper) for paper in raw_papers]
+        papers = [transform_paper(paper) for paper in raw_papers]
         pages_scanned += 1
         papers_scanned += len(papers)
 

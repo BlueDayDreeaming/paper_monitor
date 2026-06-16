@@ -17,6 +17,7 @@ python3 monitor.py --date-et 2026-06-04
 python3 monitor.py --page-cap 4
 python3 monitor.py --api-url https://api.ssrn.com/content/v1/bindings/204/papers
 python3 monitor.py --proxy-file "Webshare 10 proxies.txt"
+python3 monitor.py --fetcher http
 ```
 
 - 默认目标日期：当前 `America/New_York` 日期减一天
@@ -24,6 +25,7 @@ python3 monitor.py --proxy-file "Webshare 10 proxies.txt"
 - `--page-cap`：限制最多抓几页，每页 50 篇
 - `--api-url`：直接指定 ARN API，跳过首页发现
 - `--proxy-file`：本地测试时读取代理池文件
+- `--fetcher`：默认 `playwright`，也可切回旧的 `http` 抓取通道
 
 ## Output
 
@@ -41,6 +43,7 @@ python3 monitor.py --proxy-file "Webshare 10 proxies.txt"
 
 - 每天 `05:15 UTC` 自动运行一次
 - 也支持在 GitHub Actions 页面手动触发
+- 使用 Playwright Chromium 在 GitHub runner 上抓取 SSRN
 - 运行前先执行单测
 - 成功后把 `reports/*.md` 作为 artifact 上传
 - 如果报告有更新，会自动提交回仓库

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from ssrn_monitor.proxies import normalize_proxy_entry, parse_proxy_entries
+from ssrn_monitor.proxies import normalize_proxy_entry, parse_proxy_entries, playwright_proxy_config
 
 
 class ProxiesTest(unittest.TestCase):
@@ -39,6 +39,16 @@ class ProxiesTest(unittest.TestCase):
     def test_parses_multiline_and_comma_separated_entries(self) -> None:
         proxies = parse_proxy_entries("proxy1.example.com:8001:user:pass\nproxy2.example.com:8002,")
         self.assertEqual(len(proxies), 2)
+
+    def test_builds_playwright_proxy_config(self) -> None:
+        self.assertEqual(
+            playwright_proxy_config("socks5://user:p%2Fa%20ss@proxy.example.com:8080"),
+            {
+                "server": "socks5://proxy.example.com:8080",
+                "username": "user",
+                "password": "p/a ss",
+            },
+        )
 
 
 if __name__ == "__main__":
